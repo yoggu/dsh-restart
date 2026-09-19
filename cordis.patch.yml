@@ -1,0 +1,15 @@
+# dsh-restart bundle layer.
+#
+# Eine Zeile, ein Befehl. Die Betriebsart ist eine Eigenschaft dieses
+# Deployments und nicht des Plugins: eine spätere Patch-Ebene (das
+# Profil-`cordis.patch.yml`) ersetzt die `config` dieser Zeile vollständig.
+#
+# `mode: auto` liest die eigene Cgroup: eine `*.service`-Unit wird über systemd
+# neu gestartet, ein Prozess ohne Unit (`*.scope`, Terminal, tmux) startet sich
+# selbst neu. Ein festes `unit` erzwingt den systemd-Weg.
+- insert:
+    - id: dsh-restart
+      name: 'dsh-restart'
+      config:
+        mode: auto
+        delaySeconds: 2

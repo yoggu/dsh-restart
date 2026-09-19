@@ -1,0 +1,13 @@
+# Die Entwicklungssymlinks auf den Harness-Baum. Sie sind maschinenspezifisch
+# und werden von `pnpm add` im Profil ersetzt — nie committen.
+node_modules/
+
+# Laufzeit- und Debug-Artefakte
+*.log
+*.tmp
+.cache/
+
+# Editor
+.vscode/
+.idea/
+*.swp
