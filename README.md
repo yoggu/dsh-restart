@@ -55,13 +55,20 @@ herunter und gibt den Port frei), mit einem harten `exit` als Notausgang.
       config:
         mode: auto            # auto | unit | exec
         unit: ''              # leer = aus der eigenen Cgroup ableiten
-        delaySeconds: 2       # 1–60
+        delaySeconds: 1       # 1–60
         execStdio: inherit    # inherit | ignore (nur Prozess-Weg)
 ```
 
 Eine spätere Patch-Ebene (das Profil-`cordis.patch.yml`) ersetzt die `config`
 vollständig. Ein Argument am Befehl (`/dsh-restart 10`) überstimmt
 `delaySeconds` für diesen einen Aufruf.
+
+Die Vorgabe von einer Sekunde ist eine **Zustellreserve**, kein Bedarf von
+systemd: das Kommando-Ergebnis geht als RPC-Antwort von `commands/execute`
+zurück, und der Handler kehrt vor ihrem Flush zurück — ohne Vorlauf wäre der
+Neustart ein Wettlauf gegen die eigene Antwort. Auf localhost braucht diese
+Zustellung Millisekunden; der transiente Timer selbst käme auch mit null
+Vorlauf aus. Höher nur, wenn die Maschine träge ist.
 
 `mode: unit` erzwingt den systemd-Weg; ohne `unit` und ohne erkennbaren
 Cgroup-Pfad endet der Befehl dann mit einem Fehler statt still den Prozess-Weg
