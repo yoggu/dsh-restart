@@ -45,7 +45,15 @@ port), with a hard `exit` as an emergency fallback.
   `patchReload: live` applies to patch layers, and HMR reloads plugins from the
   plugin root directory in the running process.
 
-## Configuration
+## Settings page and configuration
+
+The bundle's **Settings → Plugins → Restart** page edits `mode`, `unit`,
+`delaySeconds`, and `execStdio` live. It validates delay to whole seconds from
+1–60 and saves all four values atomically. The page edits the active profile's
+configuration; a later patch layer may override it. `Settings → Plugins` is the
+plugin inventory and each bundle's detail page owns its settings form.
+
+Equivalent profile configuration:
 
 ```yaml
 - insert:

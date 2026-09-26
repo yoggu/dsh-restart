@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Restart",
+    "description": "Configure how /dsh-restart restarts the Harness after delivering its reply."
+  }
+}

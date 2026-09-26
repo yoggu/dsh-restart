@@ -5,20 +5,29 @@
   "description": "DeepSeek Harness plugin: a /dsh-restart command that restarts the harness's own systemd user unit after the reply has reached the browser.",
   "type": "module",
   "license": "MIT",
+  "icon": "./icon.svg",
   "main": "lib/index.js",
   "exports": {
     ".": {
       "default": "./lib/index.js"
     },
+    "./client": "./client.js",
+    "./locale/*": "./locale/*",
     "./package.json": "./package.json"
   },
   "files": [
     "lib",
+    "client.js",
+    "icon.svg",
+    "locale",
     "cordis.patch.yml",
     "README.md",
     "LICENSE"
   ],
   "dsh": {
+    "client": {
+      "platform": "web"
+    },
     "bundle": {
       "patch": "./cordis.patch.yml"
     }
