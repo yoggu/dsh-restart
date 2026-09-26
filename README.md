@@ -1,52 +1,51 @@
 # dsh-restart
 
-Ein `/dsh-restart`-Befehl für das DSH-Eingabefeld: startet den Harness neu, in
-dem man gerade arbeitet — ohne Terminal.
+A `/dsh-restart` command for the DSH input field: restarts the Harness you are
+currently working in—without a terminal.
 
 ```
-/dsh-restart        # Neustart nach der konfigurierten Vorlaufzeit
-/dsh-restart 10     # Neustart in 10 Sekunden
+/dsh-restart        # Restart after the configured lead time
+/dsh-restart 10     # Restart in 10 seconds
 ```
 
-## Zwei Betriebsarten
+## Two operating modes
 
-Ein Harness läuft entweder in einer systemd-Unit oder als gewöhnlicher Prozess.
-Beides wird unterstützt; `mode: auto` entscheidet anhand der eigenen Cgroup.
+A Harness runs either in a systemd unit or as an ordinary process.
+Both are supported; `mode: auto` decides based on its own cgroup.
 
-| Lage | Cgroup | Weg |
+| Situation | Cgroup | Method |
 | --- | --- | --- |
-| systemd-Dienst | `…/app.slice/dsh-web.service` | transienter Timer beim User-Manager startet die Unit neu |
-| Terminal, tmux, nohup | `…/app.slice/app-….scope`, `…/session-N.scope` | Nachfolger mit derselben Kommandozeile, wartet auf das Ende dieses Prozesses |
+| systemd service | `…/app.slice/dsh-web.service` | A transient timer at the user manager restarts the unit |
+| Terminal, tmux, nohup | `…/app.slice/app-….scope`, `…/session-N.scope` | Successor with the same command line waits for this process to exit |
 
-**Unit-Weg.** Der Befehl setzt `systemd-run --user --on-active=<n> systemctl
---user restart <unit>` ab. Der transiente Timer liegt beim User-Manager und
-überlebt damit genau den Prozess, den er beendet; die Vorlaufzeit gibt der
-Antwort Zeit, den Browser zu erreichen. Ein direktes `systemctl` im selben
-Prozess hätte die eigene Antwort abgeschnitten, und ein bloß abgespaltener
-Kindprozess stürbe mit der Cgroup der Unit.
+**Unit path.** The command schedules
+`systemd-run --user --on-active=<n> systemctl --user restart <unit>`.
+The transient timer is held by the user manager and therefore outlives exactly
+the process it terminates; the lead time gives the response time to reach the
+browser. A direct `systemctl` in the same process would truncate its own
+response, and a merely detached child process would die with the unit's cgroup.
 
-**Prozess-Weg.** Es gibt keine Unit, also startet der Befehl einen Nachfolger
-(`process.execPath` mit `process.argv.slice(1)`, gleiches Arbeitsverzeichnis) und
-beendet sich selbst. Der Nachfolger wartet zuerst darauf, dass der alte PID
-verschwunden ist — zwei Instanzen am selben Port wären ein `EADDRINUSE`. Node
-kennt kein `execve`, deshalb ist das ein abgesetzter Prozess und kein Ersatz an
-Ort und Stelle. Beendet wird zuerst höflich per `SIGTERM` (der Harness fährt
-herunter und gibt den Port frei), mit einem harten `exit` als Notausgang.
+**Process path.** There is no unit, so the command starts a successor
+(`process.execPath` with `process.argv.slice(1)`, same working directory) and
+exits itself. The successor first waits for the old PID to disappear—two
+instances on the same port would cause `EADDRINUSE`. Node has no `execve`, so
+this is a detached process rather than an in-place replacement. Termination is
+first attempted politely with `SIGTERM` (the Harness shuts down and frees the
+port), with a hard `exit` as an emergency fallback.
 
-## Nebenwirkungen
+## Side effects
 
-- **Der laufende Turn endet.** Ein Neustart mitten in einer Antwort bricht sie
-  ab; die Vorlaufzeit ist genau dafür da, die Antwort noch zuzustellen.
-- Das Browser-Fenster verliert die Verbindung und verbindet sich nach dem
-  Neustart neu.
-- Im Prozess-Weg hängen die Logs je nach `execStdio` am selben Ort (`inherit`,
-  Vorgabe) oder werden verworfen (`ignore`).
-- Ein Neustart ist nur für Änderungen nötig, die beim **Laden** greifen (neue
-  Bundle-Zeilen, `package.json`). `settings.yaml` ist hot-reloaded,
-  `patchReload: live` gilt für Patch-Ebenen, und HMR lädt Plugins aus dem
-  Plugin-Wurzelverzeichnis im laufenden Prozess neu.
+- **The current turn ends.** A restart in the middle of a response aborts it;
+  the lead time exists precisely to give the response time to be delivered.
+- The browser window loses its connection and reconnects after the restart.
+- In process mode, the logs remain in the same place depending on `execStdio`
+  (`inherit`, the default) or are discarded (`ignore`).
+- A restart is only needed for changes that take effect when **loading** (new
+  bundle lines, `package.json`). `settings.yaml` is hot-reloaded,
+  `patchReload: live` applies to patch layers, and HMR reloads plugins from the
+  plugin root directory in the running process.
 
-## Konfiguration
+## Configuration
 
 ```yaml
 - insert:
@@ -54,32 +53,32 @@ herunter und gibt den Port frei), mit einem harten `exit` als Notausgang.
       name: 'dsh-restart'
       config:
         mode: auto            # auto | unit | exec
-        unit: ''              # leer = aus der eigenen Cgroup ableiten
+        unit: ''              # empty = derive from the own cgroup
         delaySeconds: 1       # 1–60
-        execStdio: inherit    # inherit | ignore (nur Prozess-Weg)
+        execStdio: inherit    # inherit | ignore (process path only)
 ```
 
-Eine spätere Patch-Ebene (das Profil-`cordis.patch.yml`) ersetzt die `config`
-vollständig. Ein Argument am Befehl (`/dsh-restart 10`) überstimmt
-`delaySeconds` für diesen einen Aufruf.
+A later patch layer (the profile's `cordis.patch.yml`) completely replaces the
+`config`. An argument to the command (`/dsh-restart 10`) overrides
+`delaySeconds` for that one invocation.
 
-Die Vorgabe von einer Sekunde ist eine **Zustellreserve**, kein Bedarf von
-systemd: das Kommando-Ergebnis geht als RPC-Antwort von `commands/execute`
-zurück, und der Handler kehrt vor ihrem Flush zurück — ohne Vorlauf wäre der
-Neustart ein Wettlauf gegen die eigene Antwort. Auf localhost braucht diese
-Zustellung Millisekunden; der transiente Timer selbst käme auch mit null
-Vorlauf aus. Höher nur, wenn die Maschine träge ist.
+The default of one second is a **delivery buffer**, not a systemd requirement:
+the command result is returned as an RPC response from `commands/execute`, and
+the handler returns before its flush—with no lead time, the restart would race
+its own response. On localhost, delivery takes milliseconds; the transient
+timer itself would also work with zero lead time. Use a higher value only if the
+machine is sluggish.
 
-`mode: unit` erzwingt den systemd-Weg; ohne `unit` und ohne erkennbaren
-Cgroup-Pfad endet der Befehl dann mit einem Fehler statt still den Prozess-Weg
-zu nehmen. `mode: exec` erzwingt den Prozess-Weg — sinnvoll nur, wenn der
-Prozess wirklich ohne Unit läuft, denn ein abgesetzter Nachfolger lebt dann
-außerhalb der Unit, die systemd für beendet hält.
+`mode: unit` forces the systemd path; without `unit` and without a recognizable
+cgroup path, the command ends with an error instead of silently taking the
+process path. `mode: exec` forces the process path—useful only when the process
+really runs without a unit, because a detached successor would then live outside
+the unit that systemd considers terminated.
 
-## Fehlerfälle
+## Error cases
 
-| Ergebnis | Bedeutung |
+| Result | Meaning |
 | --- | --- |
-| `Neustart von <unit> konnte nicht abgesetzt werden` | `systemd-run` ist gescheitert; die Ausgabe darunter nennt den Grund (kein User-Manager, unbekannte Unit, kein `systemd-run` im PATH). |
-| `mode "unit" ist erzwungen, aber …` | `mode: unit` ohne `unit` und ohne `*.service` in der eigenen Cgroup. |
-| `Der Vorlauf muss zwischen 1 und 60 Sekunden liegen` | Das Argument am Befehl war keine Zahl im erlaubten Bereich. |
+| `Could not schedule restart of <unit>` | `systemd-run` failed; the output below gives the reason (no user manager, unknown unit, or no `systemd-run` in `PATH`). |
+| `mode "unit" is forced, but …` | `mode: unit` without `unit` and without `*.service` in the own cgroup. |
+| `The lead time must be between 1 and 60 seconds` | The argument to the command was not a number in the permitted range. |
