@@ -1,6 +1,6 @@
 {
   "name": "dsh-restart",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "DeepSeek Harness plugin: a /dsh-restart command that restarts the harness's own systemd user unit after the reply has reached the browser.",
   "type": "module",
