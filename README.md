@@ -4,16 +4,16 @@ Adds `/dsh-restart` to DSH Web. It schedules a restart of the current Harness pr
 
 ## Install
 
-Install the latest source from the existing default branch (older tags may not contain English command responses):
+Install the latest tagged GitHub release:
 
 ```sh
-dsh plugin --profile web add 'https://github.com/yoggu/dsh-restart.git#main'
+dsh plugin --profile web add 'https://github.com/yoggu/dsh-restart.git#v0.1.3'
 ```
 
 Or download the source and link the local checkout:
 
 ```sh
-git clone https://github.com/yoggu/dsh-restart.git
+git clone --branch v0.1.3 --depth 1 https://github.com/yoggu/dsh-restart.git
 cd dsh-restart
 dsh plugin --profile web add "link:$(pwd)"
 ```
