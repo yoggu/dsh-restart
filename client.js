@@ -19,7 +19,7 @@ window.__ModuleLoader__.load({
 
     function RestartForm({ form }) {
       const [snapshot, setSnapshot] = useState(form.getSnapshot())
-      const [draft, setDraft] = useState({ mode: 'auto', unit: '', delaySeconds: '1', execStdio: 'inherit' })
+      const [draft, setDraft] = useState({ language: 'en', mode: 'auto', unit: '', delaySeconds: '1', execStdio: 'inherit' })
       const [dirty, setDirty] = useState(false)
       const [saving, setSaving] = useState(false)
       const [error, setError] = useState('')
@@ -36,6 +36,7 @@ window.__ModuleLoader__.load({
         if (snapshot.status !== 'ready' || dirty) return
         const value = snapshot.value ?? {}
         setDraft({
+          language: value.language === 'de' ? 'de' : 'en',
           mode: value.mode ?? 'auto',
           unit: value.unit ?? '',
           delaySeconds: String(value.delaySeconds ?? 1),
@@ -64,11 +65,16 @@ window.__ModuleLoader__.load({
           setError('Choose a valid process output mode.')
           return
         }
+        if (!['en', 'de'].includes(draft.language)) {
+          setError('Choose English or German for command responses.')
+          return
+        }
         setSaving(true)
         setError('')
         setNotice('')
         try {
           const accepted = await form.mutate([
+            { op: 'set', path: ['language'], value: draft.language },
             { op: 'set', path: ['mode'], value: draft.mode },
             { op: 'set', path: ['unit'], value: draft.unit.trim() },
             { op: 'set', path: ['delaySeconds'], value: delay },
@@ -95,6 +101,13 @@ window.__ModuleLoader__.load({
       const inputStyle = { boxSizing: 'border-box', width: '100%', maxWidth: 420, height: 34, padding: '0 12px', border: '.5px solid var(--dsw-alias-border-l4)', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-3)', color: 'var(--dsw-alias-label-primary)', font: 'inherit', fontSize: 13, lineHeight: 1.5 }
       const hintStyle = { margin: 0, color: 'var(--dsw-alias-label-tertiary)', fontSize: 12, lineHeight: 1.5 }
       return h('form', { onSubmit: save, style: { maxWidth: 640, padding: '8px 0 24px', color: 'var(--dsw-alias-label-primary)', fontSize: 13, lineHeight: 1.5 } },
+        h('label', { style: labelStyle }, 'Command language',
+          h('select', { value: draft.language, disabled, onChange: (event) => edit('language', event.target.value), style: inputStyle },
+            h('option', { value: 'en' }, 'English'),
+            h('option', { value: 'de' }, 'Deutsch'),
+          ),
+          h('p', { style: hintStyle }, 'English is the default. German preserves the previous command messages.'),
+        ),
         h('label', { style: labelStyle }, 'Mode',
           h('select', { value: draft.mode, disabled, onChange: (event) => edit('mode', event.target.value), style: inputStyle },
             h('option', { value: 'auto' }, 'Auto — detect systemd unit or process'),
